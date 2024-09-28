@@ -21,7 +21,7 @@ class PreProcesser():
         else:
             return False
 
-    def white_mask(image):
+    def white_mask(self, image):
         lower_white = np.array([242, 242, 242], dtype=np.uint8)
         upper_white = np.array([255, 255, 255], dtype=np.uint8)
 
@@ -42,12 +42,20 @@ class PreProcesser():
         # Optionally, apply the mask to the original image to extract only white areas
         return cv2.bitwise_and(image, image, mask=mask)
 
+    def average_brightness(self, image):
+        # Convert the image to grayscale
+        grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        # Calculate the average brightness by taking the mean of the grayscale pixel values
+        average_brightness_value = np.mean(grayscale)
+        
+        return average_brightness_value 
+
     def bgr_mask(self, image, bgr_lower, bg_upper):
         mask = cv2.inRange(image, lower_red, upper_red)
         return cv2.bitwise_and(image, image, mask=mask)
 
-    def grey_mask(self, image, lower_threshold = 140, upper_threshold = 255):
-        image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def grey_mask(self, image, lower_threshold = 235, upper_threshold = 255):
         _, threshold_image = cv2.threshold(image, lower_threshold, upper_threshold, cv2.THRESH_BINARY)
         return threshold_image
 
