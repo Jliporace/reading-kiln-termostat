@@ -3,6 +3,7 @@ import os
 import pathlib
 import easyocr
 import sys
+import re 
 
 import numpy as np
 import pandas as pd
@@ -82,7 +83,7 @@ class CurveCreator():
 
     def predict_number(self, image):
         # cropped_image = self.prep.crop_image(image, self.bounding_box)
-        
+        lower_threshold = self.prep.find_best_mask(image)
         prep_image = self.prep.grey_mask(image, lower_threshold = 235)
 
         try:
@@ -153,7 +154,7 @@ class CurveCreator():
         frames_path_ir = sorted(pathlib.Path(frames_path).glob('**/*'), key=os.path.getmtime)
         frames = [str(f) for f in frames_path_ir if f.is_file()]
 
-        for frame in frames[1:]:
+        for frame in frames[58:]:
             image = cv2.imread(frame)
             date, time = self.capture_datetime(image)
             try: 
@@ -166,7 +167,7 @@ class CurveCreator():
             file_name = cropped_path + date + '_' + time + '.png'
             r = cv2.imwrite(file_name, cropped_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
 
-    def create_curve(self):
+    def create_curve(self, test_name):
         PNG_COMPRESSION = 0
         self.error = ' '
 
@@ -174,15 +175,15 @@ class CurveCreator():
         # if (self.video_to_frames == True):
         #     self.input_reader.frame_recorded_firing(self.dir_path, frames_path)
             
-        predictions_path = self.firing_save_path + "/prediction_frames/"
+        predictions_path = self.firing_save_path + '/' + test_name + "/prediction_frames/" 
         if not os.path.exists(predictions_path):
             os.makedirs(predictions_path)
 
         cropped_path = self.firing_save_path + "/cropped_datetime/"
 
-        frames_path_ir = sorted(pathlib.Path(cropped_path).glob('**/*'), key=os.path.getmtime)
+        frames_path_ir = sorted(pathlib.Path(cropped_path).glob('**/*'), key=lambda x: x.name)
         frames = [str(f) for f in frames_path_ir if f.is_file()]
-        curve_prediction = pd.DataFrame(columns = ['timestamp', 'prediction', 'curve', 'error'])
+        curve_prediction = pd.DataFrame(columns = ['timestamp', 'prediction', 'original_prediction', 'curve', 'error'])
 
         image = cv2.imread(frames[0])
         pattern = r"(\d{4}-\d{2}-\d{2})_(\d{2}:\d{2}:\d{2})"
@@ -198,7 +199,7 @@ class CurveCreator():
         for frame in frames[1:]:
             image = cv2.imread(frame)
             pattern = r"(\d{4}-\d{2}-\d{2})_(\d{2}:\d{2}:\d{2})"
-            match = re.search(pattern, str(frames[0]))
+            match = re.search(pattern, str(frame))
             if match:
                 date = match.group(1)
                 time = match.group(2)
@@ -228,17 +229,17 @@ class CurveCreator():
             if (self.bad_predictions >=6):
                 self.error += ' Últimos 6 números iguais - leitura travada'
 
-            file_name = predictions_path + date + '_' + time + '_' + str(self.prediction) + '_' + str(predicted_number) +'.png'
+            file_name = predictions_path + date + '_' + time + '_' + str(predicted_number) + '_' + str(self.prediction) + '.png'
             r = cv2.imwrite(file_name, prediction_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
 
-            row = {'timestamp': date + time, 'prediction': predicted_number, 'curve': self.curve, 'error': self.error}
+            row = {'timestamp': date + time, 'prediction': predicted_number, 'original_prediction': self.prediction, 'curve': self.curve, 'error': self.error}
             curve_prediction.loc[len(curve_prediction)] = row
 
             self.error = ' '
             previous_time = date_obj
 
 
-        curve_prediction.to_csv(self.firing_save_path + "/curve_predictions.csv")
+        curve_prediction.to_csv(self.firing_save_path + '/' + test_name + "/curve_predictions.csv")
 
         return self.curve
 

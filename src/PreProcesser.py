@@ -3,20 +3,24 @@ import os
 import pathlib
 import numpy as np
 
+LOWER_BRIGHT_LIMIT = 18
+UPPER_BRIGHT_LIMIT = 40
+INITIAL_MASK = 235
+
 class PreProcesser():
 
     def __init__(self):
         pass
 
-    def is_gray(self, image):
-        # Convert the image to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    def is_bgr_grey(self, image):
+        # Convert the image to greyscale
+        grey = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-        # Re-convert grayscale to BGR for comparison
-        gray_bgr = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
+        # Re-convert greyscale to BGR for comparison
+        grey_bgr = cv2.cvtColor(grey, cv2.COLOR_GRAY2BGR)
 
         # Compare the converted image with the original
-        if np.array_equal(image, gray_bgr):
+        if np.array_equal(image, grey_bgr):
             return True
         else:
             return False
@@ -42,20 +46,39 @@ class PreProcesser():
         # Optionally, apply the mask to the original image to extract only white areas
         return cv2.bitwise_and(image, image, mask=mask)
 
+    def find_best_mask(self, image, initial_mask = INITIAL_MASK):
+        mask = initial_mask
+        while True:
+            masked = self.grey_mask(image, mask)
+            brightness = self.average_brightness(masked)
+            if (brightness >= UPPER_BRIGHT_LIMIT):
+                mask = mask + 4
+                if mask >= 252:
+                    return 252
+            else:
+                if (brightness <= LOWER_BRIGHT_LIMIT):
+                    mask = mask - 4
+                    if mask <= 5:
+                        return 5
+                else:
+                    return mask
+
     def average_brightness(self, image):
-        # Convert the image to grayscale
-        grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-        cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # Calculate the average brightness by taking the mean of the grayscale pixel values
-        average_brightness_value = np.mean(grayscale)
-        
-        return average_brightness_value 
+        if len(image.shape) == 3:
+            
+            average_brightness_value = np.mean(greyscale)
+            return average_brightness_value 
+        # Convert the image to greyscale
+        else:
+            return np.mean(image)        
 
     def bgr_mask(self, image, bgr_lower, bg_upper):
         mask = cv2.inRange(image, lower_red, upper_red)
         return cv2.bitwise_and(image, image, mask=mask)
 
     def grey_mask(self, image, lower_threshold = 235, upper_threshold = 255):
+        if len(image.shape) == 3:
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, threshold_image = cv2.threshold(image, lower_threshold, upper_threshold, cv2.THRESH_BINARY)
         return threshold_image
 
