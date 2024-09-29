@@ -3,8 +3,8 @@ import os
 import pathlib
 import numpy as np
 
-LOWER_BRIGHT_LIMIT = 18
-UPPER_BRIGHT_LIMIT = 40
+LOWER_BRIGHT_LIMIT = 20
+UPPER_BRIGHT_LIMIT = 35
 INITIAL_MASK = 235
 
 class PreProcesser():
@@ -65,8 +65,8 @@ class PreProcesser():
 
     def average_brightness(self, image):
         if len(image.shape) == 3:
-            
-            average_brightness_value = np.mean(greyscale)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+            average_brightness_value = np.mean(image)
             return average_brightness_value 
         # Convert the image to greyscale
         else:

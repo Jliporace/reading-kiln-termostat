@@ -65,13 +65,18 @@ class CurveCreator():
         return count
 
     def bad_prediction(self, predicted_number):
-        if (abs(predicted_number - (self.curve[-1] + (self.count_consecutive_last_element(self.curve) - 1))) > 3):
+        if (predicted_number - self.curve[-1] < 0):
+            self.error += "Leitura de número anterior. O forno está esfriando?"
             return True
         else:
-            if (predicted_number > self.final_temp):
+            if (predicted_number - (self.curve[-1] + (self.count_consecutive_last_element(self.curve) - 1))) > 5:
                 return True
             else:
-                return False
+                if (predicted_number > self.final_temp):
+                    self.error += "Número maior que a temperatura final"
+                    return True
+                else:
+                    return False
 
     def correct_curve(self, predicted_number):
         if(self.bad_predictions >= 2 and (predicted_number - self.curve[-1] > 0)):
@@ -84,7 +89,7 @@ class CurveCreator():
     def predict_number(self, image):
         # cropped_image = self.prep.crop_image(image, self.bounding_box)
         lower_threshold = self.prep.find_best_mask(image)
-        prep_image = self.prep.grey_mask(image, lower_threshold = 235)
+        prep_image = self.prep.grey_mask(image, lower_threshold)
 
         try:
             predicted_number = int(self.reader.readtext(prep_image, allowlist='0123456789', paragraph = True)[0][1].replace(" ", ""))
