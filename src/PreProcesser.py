@@ -25,8 +25,8 @@ class PreProcesser():
         else:
             return False
 
-    def white_mask(self, image):
-        lower_white = np.array([242, 242, 242], dtype=np.uint8)
+    def white_mask(self, image, lower):
+        lower_white = np.array([lower, lower, lower], dtype=np.uint8)
         upper_white = np.array([255, 255, 255], dtype=np.uint8)
 
         # Create a mask to filter out white pixels
@@ -55,11 +55,15 @@ class PreProcesser():
                 mask = mask + 4
                 if mask >= 252:
                     return 252
+                else: 
+                    return self.find_best_mask(image, mask)
             else:
                 if (brightness <= LOWER_BRIGHT_LIMIT):
                     mask = mask - 4
                     if mask <= 5:
                         return 5
+                    else:
+                        return self.find_best_mask(image, mask)
                 else:
                     return mask
 
@@ -76,7 +80,7 @@ class PreProcesser():
         mask = cv2.inRange(image, lower_red, upper_red)
         return cv2.bitwise_and(image, image, mask=mask)
 
-    def grey_mask(self, image, lower_threshold = 235, upper_threshold = 255):
+    def grey_mask(self, image, lower_threshold, upper_threshold = 255):
         if len(image.shape) == 3:
             image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
         _, threshold_image = cv2.threshold(image, lower_threshold, upper_threshold, cv2.THRESH_BINARY)
