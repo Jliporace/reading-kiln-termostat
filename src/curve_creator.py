@@ -1,4 +1,4 @@
-import InputReader
+import src.input_reader as input_reader
 import src.pre_processer as pre_processer
 import src.recognize_segments as recognize_segments
 
@@ -14,14 +14,18 @@ import re
 import numpy as np
 import pandas as pd
 
+#TO-DO refactor file names and arguments as relative paths, docker/venv friendly
 sys.path.append('/home/jessica/reading-kiln-termostat/src')
-
 
 reader = easyocr.Reader(['en'])
 
 PNG_COMPRESSION = 0
 
 class CurveCreator():
+    """
+        Performs OCR according to method of choice and returns list of numbers found in a sequence of frames. 
+    """
+    #TO-DO refactor frame_firing, save_cropped_images from CurveCreator to InputReader
 
     def __init__(self, firing_name, save_path, initial_temp = 0, final_temp = 0, bounding_box = [], video_to_frames = False):
 
@@ -32,7 +36,7 @@ class CurveCreator():
         self.video_to_frames = video_to_frames
         self.firing_name = firing_name
 
-        self.input_reader = InputReader.InputReader()
+        self.input_reader = input_reader.InputReader()
         self.prep = pre_processer.PreProcesser()
         self.reader = easyocr.Reader(['en'])
         

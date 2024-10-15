@@ -3,20 +3,22 @@ import os
 import pathlib
 
 
-
-
+PNG_COMPRESSION_LEVEL = 0 
 
 class InputReader():
-    
+    #TO-DO refactor frame_firing, save_cropped_images from CurveCreator to InputReader
     def __init__(self):
         pass        
 
     def frame_recorded_firing(self,
-                              video_path,
-                              save_path):
+                              video_path: str,
+                              save_path: str):
+        """
+        For each video in video path, frame video with 1 minute interval. Save frames to save_path
+        
+        """
                         
         p = sorted(pathlib.Path(video_path).glob('**/*'))
-        png_compression_level = 0 
         files = [str(f) for f in p if f.is_file()]
         i = 0
         for f in files:
@@ -37,7 +39,7 @@ class InputReader():
 
                 if (ret and current_frame < 360):
                     name = save_path + str(i) + '_' + str(current_frame) + ".png"
-                    cv2.imwrite(name, frame), [int(cv2.IMWRITE_PNG_COMPRESSION), png_compression_level]
+                    cv2.imwrite(name, frame), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION_LEVEL]
                     current_frame+=60
                 else:
                     break
