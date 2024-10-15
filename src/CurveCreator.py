@@ -287,7 +287,7 @@ class CurveCreator():
         energy_diff = self.curve_energy(true_curve) - self.curve_energy(self.curve)
         results_df = pd.DataFrame(columns = ['nome', 'teste', 'ac_ocr', 'acr_previsao', 'erro_energia'])
         results_row = {'nome': self.firing_name , 'teste': test_name, 'ac_ocr': accuracy_ocr, 'acr_previsao' : accuracy_curve, 'erro_energia': energy_diff }
-        
+        print(len(self.curve))
         results_df.loc[len(results_df)] = results_row
         curve_prediction.to_csv(self.firing_save_path + "/curve_predictions.csv")
         error_df.to_csv(self.firing_save_path + "/error_df.csv")

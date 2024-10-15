@@ -1,6 +1,4 @@
 import cv2 
-import os
-import pathlib
 import numpy as np
 
 LOWER_BRIGHT_LIMIT = 20
@@ -32,7 +30,6 @@ class PreProcesser():
         # Create a mask to filter out white pixels
         mask = cv2.inRange(image, lower_white, upper_white)
 
-        # Optionally, apply the mask to the original image to extract only white areas
         return cv2.bitwise_and(image, image, mask=mask)
 
 
@@ -43,7 +40,6 @@ class PreProcesser():
         # Create a mask to filter out white pixels
         mask = cv2.inRange(image, lower_red, upper_red)
 
-        # Optionally, apply the mask to the original image to extract only white areas
         return cv2.bitwise_and(image, image, mask=mask)
 
     def find_best_mask(self, image, initial_mask = INITIAL_MASK):
