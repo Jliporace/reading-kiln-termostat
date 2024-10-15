@@ -14,6 +14,7 @@ import re
 import numpy as np
 import pandas as pd
 
+#TO-DO complete docstrings
 #TO-DO refactor file names and arguments as relative paths, docker/venv friendly
 sys.path.append('/home/jessica/reading-kiln-termostat/src')
 
@@ -73,7 +74,18 @@ class CurveCreator():
         
         return count
 
-    def bad_prediction(self, predicted_number):
+    def bad_prediction(self, predicted_number:int) -> bool:
+        """
+        Checks if predicted number satisfies established conditions for a next plausible number.
+        To be elligible, a predicted number has to greater than the last number in the curve, and in
+        the range of 4 digits. If there are multiple instances of the last number in the curve, the following number
+        has to be in the range of the last number plus the number of repetitions.
+
+        Args:
+            predicted_number(int): predicted_number(int): number predicted by recognition system
+        Returns:
+            (bool): if the number is a bad prediction (True) or satisfies the conditions (False)
+        """
         if (predicted_number - self.curve[-1] < 0):
             self.error += "Leitura de número anterior. O forno está esfriando?"
             return True
@@ -87,7 +99,15 @@ class CurveCreator():
         
         return False
 
-    def correct_curve(self, predicted_number):
+    def correct_curve(self, predicted_number:int):
+        """
+            In case the curve was stalled at a number and the recognition system predicted a following value,
+            correct consecutive entries of the same number that were probably misread. 
+
+        Args:
+            predicted_number(int): number predicted by recognition system
+
+        """
         if(self.bad_predictions >= 2 and (predicted_number - self.curve[-1] > 0)):
             rate = (predicted_number - self.curve[-1])/(self.bad_predictions + 1)
             true_curve = [round(prediction) for prediction in np.arange(self.curve[-1],predicted_number,rate)]
@@ -95,11 +115,7 @@ class CurveCreator():
         else:
             return
 
-    def predict_number(self, image, method):
-        # cropped_image = self.prep.crop_image(image, self.bounding_box)
-        lower_threshold = self.prep.find_best_mask(image)
-        prep_image = self.prep.grey_mask(image, lower_threshold)
-
+    def predict_number(self, prep_image, method):
         try:
             if method == 'easy-ocr':
                 predicted_number = int(self.reader.readtext(prep_image, allowlist='0123456789', paragraph = True)[0][1].replace(" ", ""))
@@ -124,11 +140,25 @@ class CurveCreator():
             self.prediction = 0
             return (prep_image, self.curve[-1])
         
-        return self.post_processing(predicted_number, prep_image)
+        return self.post_processing(predicted_number)
 
-    def post_processing(self, predicted_number, prep_image):
+    def post_processing(self, predicted_number:int):
+        """
+            Checks if prediction makes sense based on previous curve series. If it does, returns predicted number as current prediction.
+            Else, try correcting for common mistakes and checks again. If no correction works, returns previous number as current prediction
+            and throws log error. 
 
-        if self.bad_prediction(predicted_number): 
+            Args:
+                predicted_number(int): recognition algorithm predcition
+
+            Return:
+                predicted_number(int): processed predicted_number
+        """
+        if not self.bad_prediction(predicted_number): 
+            self.correct_curve(predicted_number)
+            self.bad_predictions = 0
+            return (predicted_number)
+        else:
             original_prediction = predicted_number
             predicted_number = int('11' + str(predicted_number)[2:])
             if self.bad_prediction(predicted_number):
@@ -143,42 +173,29 @@ class CurveCreator():
                                 if self.bad_prediction(predicted_number):
                                     self.bad_predictions += 1
                                     self.error = 'Não foi possível achar número plausível'
-                                    return (prep_image, self.curve[-1])
-                                else:
-                                    if(self.bad_predictions >= 2 and (predicted_number - self.curve[-1] > 0)):
-                                        self.correct_curve(predicted_number)
-                                    self.bad_predictions = 0
-                                    return (prep_image, predicted_number)
-                            else:
-                                self.correct_curve(predicted_number)
-                                self.bad_predictions = 0
-                                return (prep_image, predicted_number)                 
+                                    return self.curve[-1]            
                         else:
                             self.error = 'Não foi possível achar número plausível'
                             self.bad_predictions += 1
-                            return (prep_image, self.curve[-1])
-                    else:
-                        self.correct_curve(predicted_number)
-                        self.bad_predictions = 0
-                        return (prep_image, predicted_number)
-                else:
-                    self.correct_curve(predicted_number)
-                    self.bad_predictions = 0
-                    return (prep_image, predicted_number)
-            else:
-                self.correct_curve(predicted_number)
-                self.bad_predictions = 0
-                return (prep_image, predicted_number)
-        else:
-            self.correct_curve(predicted_number)
-            self.bad_predictions = 0
-            return (prep_image, predicted_number)
+                            return self.curve[-1]
+                        
+        self.correct_curve(predicted_number)
+        self.bad_predictions = 0
+        return predicted_number
 
     def frame_firing(self):
+        """
+            For every minute, capture current frame from firing video. 
+        """
+        #TO-DO refactor file names and arguments as relative paths, docker/venv friendly
         frames_path = self.firing_save_path + "/frames/"
         self.input_reader.frame_recorded_firing('/home/jessica/reading-kiln-termostat/data/recordings/10-10-2023-esmalte/original', frames_path)
         
     def save_cropped_images(self):
+        """
+            For each frame, capture datetime identification and crop the section corresponding to the 7 segment display. 
+            Save cropped image with corresponding datetime. 
+        """
         frames_path = self.firing_save_path + "/frames/"
         cropped_path = self.firing_save_path + "/cropped_datetime/"
         if not os.path.exists(cropped_path):
@@ -205,6 +222,7 @@ class CurveCreator():
         if not os.path.exists(predictions_path):
             os.makedirs(predictions_path)
 
+        #TO-DO refactor file names and arguments as relative paths, docker/venv friendly
         cropped_path = f'/home/jessica/reading-kiln-termostat/data/recordings/{self.firing_name}/cropped_datetime/'
         frames_path_ir = sorted(pathlib.Path(cropped_path).glob('**/*'), key=lambda x: x.name)
 
@@ -257,7 +275,10 @@ class CurveCreator():
                         append = [self.curve[-1]] * int(np.floor(delta_t - 1))
                         self.curve = self.curve + append
 
-            prediction_image, predicted_number = self.predict_number(image, method)
+            lower_threshold = self.prep.find_best_mask(image)
+            prediction_image = self.prep.grey_mask(image, lower_threshold)
+
+            predicted_number = self.predict_number(prediction_image, method)
             self.curve = self.curve + [predicted_number]
             true_curve = true_curve + [int(true_temperature)]
             ocr_curve = ocr_curve + [self.prediction]
