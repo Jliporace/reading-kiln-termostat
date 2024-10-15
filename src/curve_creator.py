@@ -1,6 +1,8 @@
-import src.input_reader as input_reader
-import src.pre_processer as pre_processer
-import src.recognize_segments as recognize_segments
+import sys
+sys.path.append('/home/jessica/reading-kiln-termostat/src')
+import input_reader as input_reader
+import pre_processer as pre_processer
+import recognize_segments as recognize_segments
 
 from datetime import datetime
 
@@ -8,7 +10,6 @@ import os
 import cv2 
 import pathlib
 import easyocr
-import sys
 import re 
 
 import numpy as np
@@ -16,7 +17,6 @@ import pandas as pd
 
 #TO-DO complete docstrings
 #TO-DO refactor file names and arguments as relative paths, docker/venv friendly
-sys.path.append('/home/jessica/reading-kiln-termostat/src')
 
 reader = easyocr.Reader(['en'])
 
