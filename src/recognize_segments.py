@@ -21,6 +21,9 @@ DIGITS_LOOKUP = {
 
 
 class RecognizeSegments():
+	"""
+	Performs OCR considering the recognition of active segments in a 7-segment display. 
+	"""
 
 	def __init__(self):
 		self.prediction = 0

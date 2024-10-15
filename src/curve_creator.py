@@ -1,5 +1,11 @@
-import cv2 
+import InputReader
+import src.pre_processer as pre_processer
+import src.recognize_segments as recognize_segments
+
+from datetime import datetime
+
 import os
+import cv2 
 import pathlib
 import easyocr
 import sys
@@ -9,11 +15,8 @@ import numpy as np
 import pandas as pd
 
 sys.path.append('/home/jessica/reading-kiln-termostat/src')
-import InputReader
-import PreProcesser
-import RecognizeSegments
 
-from datetime import datetime
+
 reader = easyocr.Reader(['en'])
 
 PNG_COMPRESSION = 0
@@ -30,14 +33,13 @@ class CurveCreator():
         self.firing_name = firing_name
 
         self.input_reader = InputReader.InputReader()
-        self.prep = PreProcesser.PreProcesser()
+        self.prep = pre_processer.PreProcesser()
         self.reader = easyocr.Reader(['en'])
         
         self.error = ''
         self.bad_predictions = 0
         self.curve = [initial_temp]
         self.prediction = 0
-        # self.firing_save_path = save_path 
 
         self.firing_save_path = save_path + '/' + firing_name
         if not os.path.exists(self.firing_save_path):
@@ -71,15 +73,15 @@ class CurveCreator():
         if (predicted_number - self.curve[-1] < 0):
             self.error += "Leitura de número anterior. O forno está esfriando?"
             return True
-        else:
-            if (predicted_number - (self.curve[-1] + (self.count_consecutive_last_element(self.curve) - 1))) > 4:
-                return True
-            else:
-                if (predicted_number > self.final_temp):
-                    self.error += "Número maior que a temperatura final"
-                    return True
-                else:
-                    return False
+        
+        if (predicted_number - (self.curve[-1] + (self.count_consecutive_last_element(self.curve) - 1))) > 4:
+            return True
+        
+        if (predicted_number > self.final_temp):
+            self.error += "Número maior que a temperatura final"
+            return True
+        
+        return False
 
     def correct_curve(self, predicted_number):
         if(self.bad_predictions >= 2 and (predicted_number - self.curve[-1] > 0)):
@@ -99,9 +101,10 @@ class CurveCreator():
                 predicted_number = int(self.reader.readtext(prep_image, allowlist='0123456789', paragraph = True)[0][1].replace(" ", ""))
             else:
                 if method == 'tessaract':
+                    #TO-DO: implement recognition using tessaract
                     pass
                 else:
-                    rec_seg = RecognizeSegments.RecognizeSegments()
+                    rec_seg = recognize_segments.RecognizeSegments()
                     
                     countours_path = self.firing_save_path + "/cnts_frames/" 
                     if not os.path.exists(countours_path):
@@ -110,6 +113,7 @@ class CurveCreator():
                     predicted_number = rec_seg.pipeline(prep_image, countours_path)
 
             self.prediction = predicted_number
+
         except Exception as e:
             self.error += f" Não foi possível extrair leitura. Exceção {e}"
             self.bad_predictions += 1
@@ -153,11 +157,11 @@ class CurveCreator():
                         self.correct_curve(predicted_number)
                         self.bad_predictions = 0
                         return (prep_image, predicted_number)
-                else: 
+                else:
                     self.correct_curve(predicted_number)
                     self.bad_predictions = 0
                     return (prep_image, predicted_number)
-            else: 
+            else:
                 self.correct_curve(predicted_number)
                 self.bad_predictions = 0
                 return (prep_image, predicted_number)
@@ -182,27 +186,16 @@ class CurveCreator():
         for frame in frames:
             image = cv2.imread(frame)
             date, time = self.capture_datetime(image)
-            try: 
-                date_obj = datetime.strptime(date + ' ' + time, "%Y-%m-%d %H:%M:%S")
-            except Exception as e:
-                date_obj = datetime.strptime('2024-01-01 01:01:01', "%Y-%m-%d %H:%M:%S")
-            
             cropped_image = self.prep.crop_image(image, self.bounding_box)
-
             file_name = cropped_path + date + '_' + time + '.png'
-            r = cv2.imwrite(file_name, cropped_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
+            cv2.imwrite(file_name, cropped_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
 
     def curve_energy(self, signal):
         signal_1160 = [s for s in signal if s >= 1160]
         return np.sum([((s - 1175) ** 2) + 0.3 * s  for s in signal_1160])
 
     def create_curve(self, test_name, method):
-        PNG_COMPRESSION = 0
         self.error = ' '
-
-        # frames_path = self.firing_save_path + "/frames/"
-        # if (self.video_to_frames == True):
-        #     self.input_reader.frame_recorded_firing(self.dir_path, frames_path)
 
         predictions_path = self.firing_save_path + "/prediction_frames/" 
         if not os.path.exists(predictions_path):
@@ -244,7 +237,7 @@ class CurveCreator():
                 date, time = previous_time.date().strftime("%Y-%m-%d"), previous_time.time().strftime("%H:%M:%S")
             try: 
                 date_obj = datetime.strptime(date + ' ' + time, "%Y-%m-%d %H:%M:%S")
-            except Exception as e:
+            except Exception:
                 date_obj = previous_time 
                 self.error += 'Não foi possível ler data/hora'
 
@@ -269,7 +262,7 @@ class CurveCreator():
                 self.error += ' Últimos 6 números iguais - leitura travada'
 
             file_name = predictions_path + date + '_' + time + '_' + str(predicted_number) + '_' + str(self.prediction) + '.png'
-            r = cv2.imwrite(file_name, prediction_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
+            cv2.imwrite(file_name, prediction_image), [int(cv2.IMWRITE_PNG_COMPRESSION), PNG_COMPRESSION]
 
             row = {'timestamp': date + time, 'prediction': predicted_number, 'original_prediction': self.prediction, 'curve': self.curve, 'error': self.error}
             curve_prediction.loc[len(curve_prediction)] = row
@@ -281,18 +274,19 @@ class CurveCreator():
             self.error = ' '
             previous_time = date_obj
 
-
+        #Performance calculations
         accuracy_ocr = (np.array(true_curve) == np.array(ocr_curve)).sum() / len(true_curve)
         accuracy_curve = (np.array(true_curve) == np.array(self.curve)).sum() / len(true_curve)
         energy_diff = self.curve_energy(true_curve) - self.curve_energy(self.curve)
+
+        #Save test results and error log to .csv
         results_df = pd.DataFrame(columns = ['nome', 'teste', 'ac_ocr', 'acr_previsao', 'erro_energia'])
         results_row = {'nome': self.firing_name , 'teste': test_name, 'ac_ocr': accuracy_ocr, 'acr_previsao' : accuracy_curve, 'erro_energia': energy_diff }
-        print(len(self.curve))
         results_df.loc[len(results_df)] = results_row
         curve_prediction.to_csv(self.firing_save_path + "/curve_predictions.csv")
         error_df.to_csv(self.firing_save_path + "/error_df.csv")
-
         results_df.to_csv(self.firing_save_path + '/results_df.csv')
+
         return self.curve, results_df
 
 
